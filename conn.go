@@ -659,7 +659,9 @@ func (c *Conn) extractRestlsAppData(record []byte) ([]byte, restlsCommand, error
 	authMac := hmacAuth.Sum(nil)[:restlsAppDataMACLength]
 	for i, m := range authMac {
 		if m != record[i] {
-			debugf(c, "extractRestlsAppData: bad authMac, expect %v, actual %v, to_server: %d, to_client: %d\n", authMac, record[:+restlsAppDataMACLength], c.restlsToServerCounter, c.restlsToClientCounter)
+			if debugLog { // arguments are evaluated even when logging is off
+				debugf(c, "extractRestlsAppData: bad authMac, expect %v, actual %v, to_server: %d, to_client: %d\n", authMac, record[:+restlsAppDataMACLength], c.restlsToServerCounter, c.restlsToClientCounter)
+			}
 			return nil, nil, alertBadRecordMAC
 		}
 	}
@@ -680,7 +682,9 @@ func (c *Conn) extractRestlsAppData(record []byte) ([]byte, restlsCommand, error
 		return nil, nil, alertBadRecordMAC
 	}
 	data := record[restlsAppDataOffset : restlsAppDataOffset+dataLen]
-	debugf(c, "extractRestlsAppData: lengthMask: %v, recordLen: %v, dataLen: %v, authMac: %v, to_server: %d, to_client: %d\n", mask, len(record), dataLen, authMac, c.restlsToServerCounter, c.restlsToClientCounter)
+	if debugLog { // arguments are evaluated even when logging is off
+		debugf(c, "extractRestlsAppData: lengthMask: %v, recordLen: %v, dataLen: %v, authMac: %v, to_server: %d, to_client: %d\n", mask, len(record), dataLen, authMac, c.restlsToServerCounter, c.restlsToClientCounter)
+	}
 	return data, command, nil
 }
 
@@ -840,7 +844,9 @@ func (c *Conn) readRecordOrCCS(expectChangeCipherSpec bool) error {
 				binary.BigEndian.PutUint64(record[recordHeaderLen:], c.restlsToClientRealRecordCounter)
 			}
 			data, typ, err = c.in.decrypt(record)
-			debugf(c, "message from tls: %v %v %v\n", typ, data, err)
+			if debugLog { // arguments are evaluated even when logging is off
+				debugf(c, "message from tls: %v %v %v\n", typ, data, err)
+			}
 			if typ == recordTypeApplicationData {
 				data = nil
 			}
@@ -848,7 +854,9 @@ func (c *Conn) readRecordOrCCS(expectChangeCipherSpec bool) error {
 		} else {
 			n := 0
 			if c.restlsWritePending.Swap(false) {
-				debugf(c, "restls unblock writers, len %d\n", len(data))
+				if debugLog { // arguments are evaluated even when logging is off
+					debugf(c, "restls unblock writers, len %d\n", len(data))
+				}
 				n, err = c.Write([]byte{})
 				if err != nil {
 					fmt.Printf("n, err = c.Write([]byte{}) %v\n", err)
@@ -1415,7 +1423,9 @@ func (c *Conn) write0x17AuthHeader(paddingLen int, dataLen int, command restlsCo
 	hmacAuth.Write(header)
 	hmacAuth.Write(outBuf[restlsAppDataLenOffset:]) // data len as well as the data are protected
 	authMac := hmacAuth.Sum(nil)[:restlsAppDataMACLength]
-	debugf(c, "lengthMask: %v, authMac: %v, to_server: %d, to_client: %d\n", mask, authMac, c.restlsToServerCounter, c.restlsToClientCounter)
+	if debugLog { // arguments are evaluated even when logging is off
+		debugf(c, "lengthMask: %v, authMac: %v, to_server: %d, to_client: %d\n", mask, authMac, c.restlsToServerCounter, c.restlsToClientCounter)
+	}
 	copy(outBuf[:restlsAppDataMACLength], authMac)
 	return nil
 }
@@ -1490,7 +1500,9 @@ func (c *Conn) writeRestlsApplicationRecord(dataNew []byte) (int, error) {
 	var n int
 	for len(data) > 0 || fakeResponse {
 		payloadLen, dataLen, paddingLen, command := c.actAccordingToScript(data)
-		debugf(c, "writeRestls payloadLen %d, dataLen %d, paddingLen %d, command %v, dataSize %d\n", payloadLen, dataLen, paddingLen, command, len(data))
+		if debugLog { // arguments are evaluated even when logging is off
+			debugf(c, "writeRestls payloadLen %d, dataLen %d, paddingLen %d, command %v, dataSize %d\n", payloadLen, dataLen, paddingLen, command, len(data))
+		}
 		if payloadLen == 0 {
 			return 0, nil
 		}
@@ -1530,7 +1542,9 @@ func (c *Conn) writeRestlsApplicationRecord(dataNew []byte) (int, error) {
 		n += payloadLen
 		data = data[dataLen:]
 		if command.needInterrupt() && !fakeResponse {
-			debugf(c, "restls write [%d] blocked, remaining %d\n", c.restlsToClientCounter, len(data))
+			if debugLog { // arguments are evaluated even when logging is off
+				debugf(c, "restls write [%d] blocked, remaining %d\n", c.restlsToClientCounter, len(data))
+			}
 			break
 		}
 		fakeResponse = false
